@@ -97,32 +97,49 @@ jobs:
         if: steps.check-service.outputs.exists == 'false'
         id: create-service
         run: |
-          aws apprunner create-service \
-            --service-name ${{ env.APP_RUNNER_SERVICE }} \
-            --region ${{ env.AWS_REGION }} \
-            --source-configuration '{
-              "ImageRepository": {
-                "ImageIdentifier": "${{ needs.build-and-push.outputs.image_uri }}",
-                "ImageRepositoryType": "ECR",
-                "ImageConfiguration": {
-                  "Port": "8000",
-                  "RuntimeEnvironmentVariables": {
-                    "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
-                    "QDRANT_URL": "${{ secrets.QDRANT_URL }}",
-                    "QDRANT_API_KEY": "${{ secrets.QDRANT_API_KEY }}",
-                    "LOG_LEVEL": "INFO",
-                    "LANGSMITH_TRACING": "true",
-                    "LANGSMITH_API_KEY": "${{ secrets.LANGSMITH_API_KEY }}",
-                    "LANGSMITH_PROJECT": "rag-qa-production",
-                    "LANGSMITH_ENDPOINT": "https://eu.api.smith.langchain.com"
+          IMAGE_URI="${{ needs.build-and-push.outputs.image_uri }}"
+          OPENAI_API_KEY=$(printf '%s' "${{ secrets.OPENAI_API_KEY }}" | tr -d '\r\n')
+          QDRANT_URL=$(printf '%s' "${{ secrets.QDRANT_URL }}" | tr -d '\r\n')
+          QDRANT_API_KEY=$(printf '%s' "${{ secrets.QDRANT_API_KEY }}" | tr -d '\r\n')
+          LANGSMITH_API_KEY=$(printf '%s' "${{ secrets.LANGSMITH_API_KEY }}" | tr -d '\r\n')
+          APP_RUNNER_ECR_ACCESS_ROLE_ARN="${{ secrets.APP_RUNNER_ECR_ACCESS_ROLE_ARN }}"
+
+          SOURCE_CONFIGURATION=$(jq -n \
+            --arg image "$IMAGE_URI" \
+            --arg openai "$OPENAI_API_KEY" \
+            --arg qdrant_url "$QDRANT_URL" \
+            --arg qdrant_key "$QDRANT_API_KEY" \
+            --arg langsmith_key "$LANGSMITH_API_KEY" \
+            --arg access_role "$APP_RUNNER_ECR_ACCESS_ROLE_ARN" \
+            '{
+              ImageRepository: {
+                ImageIdentifier: $image,
+                ImageRepositoryType: "ECR",
+                ImageConfiguration: {
+                  Port: "8000",
+                  RuntimeEnvironmentVariables: {
+                    OPENAI_API_KEY: $openai,
+                    QDRANT_URL: $qdrant_url,
+                    QDRANT_API_KEY: $qdrant_key,
+                    LOG_LEVEL: "INFO",
+                    LANGSMITH_TRACING: "true",
+                    LANGSMITH_API_KEY: $langsmith_key,
+                    LANGSMITH_PROJECT: "rag-qa-production",
+                    LANGSMITH_ENDPOINT: "https://eu.api.smith.langchain.com"
                   }
                 }
               },
-              "AuthenticationConfiguration": {
-                "AccessRoleArn": "${{ secrets.APP_RUNNER_ECR_ACCESS_ROLE_ARN }}"
+              AuthenticationConfiguration: {
+                AccessRoleArn: $access_role
               },
-              "AutoDeploymentsEnabled": false
-            }' \
+              AutoDeploymentsEnabled: false
+            }'
+          )
+
+          aws apprunner create-service \
+            --service-name ${{ env.APP_RUNNER_SERVICE }} \
+            --region ${{ env.AWS_REGION }} \
+            --source-configuration "$SOURCE_CONFIGURATION" \
             --instance-configuration '{
               "Cpu": "1 vCPU",
               "Memory": "2 GB"
@@ -148,32 +165,49 @@ jobs:
         if: steps.check-service.outputs.exists == 'true'
         id: update-service
         run: |
-          aws apprunner update-service \
-            --service-arn ${{ steps.check-service.outputs.service_arn }} \
-            --region ${{ env.AWS_REGION }} \
-            --source-configuration '{
-              "ImageRepository": {
-                "ImageIdentifier": "${{ needs.build-and-push.outputs.image_uri }}",
-                "ImageRepositoryType": "ECR",
-                "ImageConfiguration": {
-                  "Port": "8000",
-                  "RuntimeEnvironmentVariables": {
-                    "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
-                    "QDRANT_URL": "${{ secrets.QDRANT_URL }}",
-                    "QDRANT_API_KEY": "${{ secrets.QDRANT_API_KEY }}",
-                    "LOG_LEVEL": "INFO",
-                    "LANGSMITH_TRACING": "true",
-                    "LANGSMITH_API_KEY": "${{ secrets.LANGSMITH_API_KEY }}",
-                    "LANGSMITH_PROJECT": "rag-qa-production",
-                    "LANGSMITH_ENDPOINT": "https://eu.api.smith.langchain.com"
+          IMAGE_URI="${{ needs.build-and-push.outputs.image_uri }}"
+          OPENAI_API_KEY=$(printf '%s' "${{ secrets.OPENAI_API_KEY }}" | tr -d '\r\n')
+          QDRANT_URL=$(printf '%s' "${{ secrets.QDRANT_URL }}" | tr -d '\r\n')
+          QDRANT_API_KEY=$(printf '%s' "${{ secrets.QDRANT_API_KEY }}" | tr -d '\r\n')
+          LANGSMITH_API_KEY=$(printf '%s' "${{ secrets.LANGSMITH_API_KEY }}" | tr -d '\r\n')
+          APP_RUNNER_ECR_ACCESS_ROLE_ARN="${{ secrets.APP_RUNNER_ECR_ACCESS_ROLE_ARN }}"
+
+          SOURCE_CONFIGURATION=$(jq -n \
+            --arg image "$IMAGE_URI" \
+            --arg openai "$OPENAI_API_KEY" \
+            --arg qdrant_url "$QDRANT_URL" \
+            --arg qdrant_key "$QDRANT_API_KEY" \
+            --arg langsmith_key "$LANGSMITH_API_KEY" \
+            --arg access_role "$APP_RUNNER_ECR_ACCESS_ROLE_ARN" \
+            '{
+              ImageRepository: {
+                ImageIdentifier: $image,
+                ImageRepositoryType: "ECR",
+                ImageConfiguration: {
+                  Port: "8000",
+                  RuntimeEnvironmentVariables: {
+                    OPENAI_API_KEY: $openai,
+                    QDRANT_URL: $qdrant_url,
+                    QDRANT_API_KEY: $qdrant_key,
+                    LOG_LEVEL: "INFO",
+                    LANGSMITH_TRACING: "true",
+                    LANGSMITH_API_KEY: $langsmith_key,
+                    LANGSMITH_PROJECT: "rag-qa-production",
+                    LANGSMITH_ENDPOINT: "https://eu.api.smith.langchain.com"
                   }
                 }
               },
-              "AuthenticationConfiguration": {
-                "AccessRoleArn": "${{ secrets.APP_RUNNER_ECR_ACCESS_ROLE_ARN }}"
+              AuthenticationConfiguration: {
+                AccessRoleArn: $access_role
               },
-              "AutoDeploymentsEnabled": false
-            }' \
+              AutoDeploymentsEnabled: false
+            }'
+          )
+
+          aws apprunner update-service \
+            --service-arn ${{ steps.check-service.outputs.service_arn }} \
+            --region ${{ env.AWS_REGION }} \
+            --source-configuration "$SOURCE_CONFIGURATION" \
             --output json > service-output.json
 
           SERVICE_ARN=$(cat service-output.json | jq -r '.Service.ServiceArn')
